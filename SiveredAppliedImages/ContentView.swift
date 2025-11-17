@@ -11,6 +11,7 @@ import PhotosUI
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: Image?
+    @State private var originalUIImage: UIImage?
     
     var body: some View {
         VStack(spacing: 20) {
