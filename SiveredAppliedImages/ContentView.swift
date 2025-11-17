@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var selectedImage: Image?
     @State private var originalUIImage: UIImage?
     @State private var isProcessing = false
+    @State private var processingProgess: Double = 0.0
     
     var body: some View {
         VStack(spacing: 20) {
@@ -57,18 +58,32 @@ struct ContentView: View {
             })
             if originalUIImage != nil {
                 Button("Apply Anti-DeepFake Protection"){
-                    applyImmnunisation()
+                    applyImmunisation()
                 }
                 .padding()
                 .background(Color.green)
                 .foregroundColor(.white)
                 .disabled(isProcessing)
             }
+            
+            if isProcessing{
+                VStack(spacing: 10){
+                    ProgressView(value: processingProgess, total: 1.0){
+                        Text("Processing Image...")
+                    }
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: 300)
+                    Text("\(Int(processingProgess * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+            }
         }
-        .padding()s
+        .padding()
     }
     
-    private func applyImmnunisation(){
+    private func applyImmunisation(){
         guard let original = originalUIImage else {return}
         isProcessing = true
         
@@ -82,41 +97,56 @@ struct ContentView: View {
     }
     
     private func addAdversarialPerturbation(to image: UIImage) async -> UIImage? {
-            guard let cgImage = image.cgImage else { return nil }
-            
-            let width = cgImage.width
-            let height = cgImage.height
-            let colorSpace = CGColorSpaceCreateDeviceRGB()
-            let bytesPerPixel = 4
-            let bytesPerRow = bytesPerPixel * width
-            let bitsPerComponent = 8
-            
-            var pixelData = [UInt8](repeating: 0, count: height * width * bytesPerPixel)
-            
-            guard let context = CGContext(
-                data: &pixelData,
-                width: width,
-                height: height,
-                bitsPerComponent: bitsPerComponent,
-                bytesPerRow: bytesPerRow,
-                space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            ) else { return nil }
-            
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-            
-            // Apply subtle adversarial noise (imperceptible to humans, disruptive to AI)
-            for i in stride(from: 0, to: pixelData.count, by: bytesPerPixel) {
+        guard let cgImage = image.cgImage else { return nil }
+        
+        let width = cgImage.width
+        let height = cgImage.height
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        let bitsPerComponent = 8
+        
+        var pixelData = [UInt8](repeating: 0, count: height * width * bytesPerPixel)
+        
+        guard let context = CGContext(
+            data: &pixelData,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        
+        // Fix the coordinate system flip
+        
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        await MainActor.run{processingProgess = 0.3}
+        
+        let totalPixels = pixelData.count / bytesPerPixel
+        
+        // Apply subtle adversarial noise (imperceptible to humans, disruptive to AI)
+        for (index, i) in stride(from: 0, to: pixelData.count, by: bytesPerPixel).enumerated() {
                 let noise = Int8.random(in: -3...3)
                 pixelData[i] = UInt8(max(0, min(255, Int(pixelData[i]) + Int(noise))))     // R
                 pixelData[i + 1] = UInt8(max(0, min(255, Int(pixelData[i + 1]) + Int(noise)))) // G
                 pixelData[i + 2] = UInt8(max(0, min(255, Int(pixelData[i + 2]) + Int(noise)))) // B
+                
+            if index % (totalPixels / 10) == 0{
+                let progress = 0.3 + (Double(index) / Double(totalPixels) * 0.6)
+                await MainActor.run {processingProgess = progress}
             }
-            
-            guard let newCGImage = context.makeImage() else { return nil }
-            return UIImage(cgImage: newCGImage)
         }
+        
+        await MainActor.run{processingProgess = 0.95}
+            
+        guard let newCGImage = context.makeImage() else { return nil }
+        
+        await MainActor.run {processingProgess = 1.0}
+        return UIImage(cgImage: newCGImage)
     }
+}
 
 #Preview {
     ContentView()
