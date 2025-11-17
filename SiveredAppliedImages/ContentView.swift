@@ -57,7 +57,7 @@ struct ContentView: View {
             })
             if originalUIImage != nil {
                 Button("Apply Anti-DeepFake Protection"){
-                    applyImmnuisation()
+                    applyImmnunisation()
                 }
                 .padding()
                 .background(Color.green)
@@ -65,10 +65,10 @@ struct ContentView: View {
                 .disabled(isProcessing)
             }
         }
-        .padding()
+        .padding()s
     }
     
-    private func applyImmnuisation(){
+    private func applyImmnunisation(){
         guard let original = originalUIImage else {return}
         isProcessing = true
         
