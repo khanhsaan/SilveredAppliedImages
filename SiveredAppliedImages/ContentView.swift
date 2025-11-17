@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: Image?
     @State private var originalUIImage: UIImage?
+    @State private var isProcessing = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -46,15 +47,76 @@ struct ContentView: View {
                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                        // Convert to UIImage
                        let uiImage = UIImage(data: data){
+                        
+                        originalUIImage = uiImage
+                        
                         // set selectedImage to that UIImage
                         selectedImage = Image(uiImage: uiImage)
                     }
                 }
             })
+            if originalUIImage != nil {
+                Button("Apply Anti-DeepFake Protection"){
+                    applyImmnuisation()
+                }
+                .padding()
+                .background(Color.green)
+                .foregroundColor(.white)
+                .disabled(isProcessing)
+            }
         }
         .padding()
     }
-}
+    
+    private func applyImmnuisation(){
+        guard let original = originalUIImage else {return}
+        isProcessing = true
+        
+        Task{
+            if let protected = await addAdversarialPerturbation(to: original){
+                selectedImage = Image(uiImage: protected)
+                originalUIImage = protected
+            }
+            isProcessing = false
+        }
+    }
+    
+    private func addAdversarialPerturbation(to image: UIImage) async -> UIImage? {
+            guard let cgImage = image.cgImage else { return nil }
+            
+            let width = cgImage.width
+            let height = cgImage.height
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let bytesPerPixel = 4
+            let bytesPerRow = bytesPerPixel * width
+            let bitsPerComponent = 8
+            
+            var pixelData = [UInt8](repeating: 0, count: height * width * bytesPerPixel)
+            
+            guard let context = CGContext(
+                data: &pixelData,
+                width: width,
+                height: height,
+                bitsPerComponent: bitsPerComponent,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return nil }
+            
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            
+            // Apply subtle adversarial noise (imperceptible to humans, disruptive to AI)
+            for i in stride(from: 0, to: pixelData.count, by: bytesPerPixel) {
+                let noise = Int8.random(in: -3...3)
+                pixelData[i] = UInt8(max(0, min(255, Int(pixelData[i]) + Int(noise))))     // R
+                pixelData[i + 1] = UInt8(max(0, min(255, Int(pixelData[i + 1]) + Int(noise)))) // G
+                pixelData[i + 2] = UInt8(max(0, min(255, Int(pixelData[i + 2]) + Int(noise)))) // B
+            }
+            
+            guard let newCGImage = context.makeImage() else { return nil }
+            return UIImage(cgImage: newCGImage)
+        }
+    }
 
 #Preview {
     ContentView()
