@@ -118,8 +118,6 @@ struct ContentView: View {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
         
-        // Fix the coordinate system flip
-        
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         
         await MainActor.run{processingProgess = 0.3}
@@ -144,7 +142,7 @@ struct ContentView: View {
         guard let newCGImage = context.makeImage() else { return nil }
         
         await MainActor.run {processingProgess = 1.0}
-        return UIImage(cgImage: newCGImage)
+        return UIImage(cgImage: newCGImage, scale: image.scale, orientation: image.imageOrientation)
     }
 }
 
