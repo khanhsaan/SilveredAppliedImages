@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var originalUIImage: UIImage?
     @State private var isProcessing = false
     @State private var processingProgess: Double = 0.0
+    @State private var isProtected: Bool = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -56,7 +57,7 @@ struct ContentView: View {
                     }
                 }
             })
-            if originalUIImage != nil {
+            if originalUIImage != nil && isProtected == false {
                 Button("Apply Anti-DeepFake Protection"){
                     applyImmunisation()
                 }
@@ -64,6 +65,15 @@ struct ContentView: View {
                 .background(Color.green)
                 .foregroundColor(.white)
                 .disabled(isProcessing)
+            }
+            
+            if isProtected == true{
+                Button("Save protected image"){
+                    saveImage()
+                }
+                .padding()
+                .background(Color.green)
+                .foregroundColor(.white)
             }
             
             if isProcessing{
@@ -83,6 +93,11 @@ struct ContentView: View {
         .padding()
     }
     
+    private func saveImage(){
+        guard let image = originalUIImage else {return}
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+    }
+    
     private func applyImmunisation(){
         guard let original = originalUIImage else {return}
         isProcessing = true
@@ -91,6 +106,7 @@ struct ContentView: View {
             if let protected = await addAdversarialPerturbation(to: original){
                 selectedImage = Image(uiImage: protected)
                 originalUIImage = protected
+                isProtected = true
             }
             isProcessing = false
         }
